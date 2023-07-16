@@ -21,6 +21,7 @@
           {{ option.name }}
         </option>
         <option value="other">Other</option>
+        <option value=""  ></option>
       </select>
 
       <input v-if="selectedProperties[index] === 'other'" type="text" v-model="otherValues[index]" />
@@ -28,7 +29,7 @@
 
     <div v-if="options.length">
       <label>Model:</label>
-      <select v-model="selectedOption">
+      <select id="x" v-model="selectedOption">
         <option v-for="option in options" :value="option.id" :key="option.id">
           {{ option.name }}
         </option>
@@ -111,6 +112,11 @@ export default {
       this.subcategories = selectedCategory?.children || [];
     },
     async getProperties() {
+          this.selectedProperties = ['', '', ''];
+
+      this.otherValues = [];
+      this.options = [];
+      this.selectedOption = '';
       try {
         const apiUrl = `${API_URL_PROPERTIES}${this.selectedSubcategory}`;
         const response = await axios.get(apiUrl, {
