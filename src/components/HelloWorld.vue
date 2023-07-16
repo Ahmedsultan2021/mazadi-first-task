@@ -1,58 +1,192 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+  <div>
+    <label>Main Category:</label>
+    <select v-model="selectedMainCategory" @change="getSubcategories">
+      <option v-for="category in mainCategories" :value="category.id" :key="category.id">
+        {{ category.name }}
+      </option>
+    </select>
+
+    <label>Subcategory:</label>
+    <select v-model="selectedSubcategory" @change="getProperties">
+      <option v-for="subcategory in subcategories" :value="subcategory.id" :key="subcategory.id">
+        {{ subcategory.name }}
+      </option>
+    </select>
+
+    <div v-for="(property, index) in properties.slice(0, 3)" :key="index">
+      <label>{{ property.name }}:</label>
+      <select v-model="selectedProperties[index]" @change="fetchChildOptions(property, index)">
+        <option v-for="option in property.options" :value="option.id" :key="option.id">
+          {{ option.name }}
+        </option>
+        <option value="other">Other</option>
+      </select>
+
+      <input v-if="selectedProperties[index] === 'other'" type="text" v-model="otherValues[index]" />
+    </div>
+
+    <div v-if="options.length">
+      <label>Model:</label>
+      <select v-model="selectedOption">
+        <option v-for="option in options" :value="option.id" :key="option.id">
+          {{ option.name }}
+        </option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <button @click="submitForm">Submit</button>
+
+    <div class="container mx-auto px-12 ">
+      <table v-if="submitted" class="w-2/4">
+        <thead>
+          <tr>
+            <th>Property</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Main Category:</td>
+            <td>{{ mainCategories[selectedMainCategory]?.name }}</td>
+          </tr>
+          <tr v-for="(property, index) in selectedProperties" :key="index">
+            <td>{{ properties[index]?.name }}</td>
+            <td>
+              {{
+                property === 'other'
+                  ? otherValues[index]
+                  : properties[index]?.options.find((opt) => opt.id === property)?.name || ''
+              }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
 <script>
-export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
-  }
-}
-</script>
+import axios from '../../axios.config';
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
+const API_URL_ALL_CATEGORIES = 'https://staging.mazaady.com/api/v1/get_all_cats';
+const API_URL_PROPERTIES = 'https://staging.mazaady.com/api/v1/properties?cat=';
+const API_URL_OPTIONS_CHILD = 'https://staging.mazaady.com/api/v1/get-options-child/';
+
+export default {
+  data() {
+    return {
+      privateApiKey: '3%o8i}_;3D4bF]G5@22r2)Et1&mLJ4?$@+16',
+      mainCategories: [],
+      selectedMainCategory: '',
+      subcategories: [],
+      selectedSubcategory: '',
+      selectedOption: '',
+      properties: [],
+      selectedProperties: [],
+      otherValues: [],
+      submitted: false,
+      options: [],
+    };
+  },
+  mounted() {
+    this.getMainCategories();
+  },
+  methods: {
+    async getMainCategories() {
+      try {
+        const response = await axios.get(API_URL_ALL_CATEGORIES, {
+          headers: {
+            'private-key': this.privateApiKey,
+          },
+        });
+        this.mainCategories = response.data.data.categories;
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    async getSubcategories() {
+      const selectedCategory = this.mainCategories.find((category) => category.id === this.selectedMainCategory);
+      this.subcategories = selectedCategory?.children || [];
+    },
+    async getProperties() {
+      try {
+        const apiUrl = `${API_URL_PROPERTIES}${this.selectedSubcategory}`;
+        const response = await axios.get(apiUrl, {
+          headers: {
+            'private-key': this.privateApiKey,
+          },
+        });
+        this.properties = response.data.data;
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    async fetchChildOptions(property, index) {
+      const selectedProperty = this.selectedProperties[index];
+      if (property.name === 'Brand' && selectedProperty !== 'other') {
+        try {
+          const apiUrl = `${API_URL_OPTIONS_CHILD}${selectedProperty}`;
+          const response = await axios.get(apiUrl, {
+            headers: {
+              'private-key': this.privateApiKey,
+            },
+          });
+          this.options = response.data.data[0]?.options || [];
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    },
+    submitForm() {
+      this.submitted = true;
+    },
+  },
+};
+</script>
 <style scoped>
-h3 {
-  margin: 40px 0 0;
+label {
+  display: block;
+  margin-bottom: 10px;
 }
-ul {
-  list-style-type: none;
-  padding: 0;
+
+select,
+input[type="text"] {
+  margin-bottom: 10px;
+  padding: 5px;
 }
-li {
-  display: inline-block;
-  margin: 0 10px;
+
+button {
+  margin-top: 10px;
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
 }
-a {
-  color: #42b983;
+
+table {
+  margin-top: 20px;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  background-color: #f2f2f2;
+}
+input,
+select,
+option {
+  display: block;
+  margin: 10px auto;
+  width: 50vw;
 }
 </style>
